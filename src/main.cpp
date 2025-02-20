@@ -3,27 +3,40 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include "Renderer/Renderer.h"
+
 GLfloat vertices[] = {
 	-0.5, -0.5, 0.f,
 	0.5, -0.5, 0.f,
-	0, 0.5, 0.f
+	0.0, 0.5, 0.0
 };
 
 
-const char* vertex_shader = 
-"#version 460 core\n"
-"layout (location = 0) in vec3 aPos;"
+GLfloat colors[] = {
+	1, 0, 0,
+	0, 1, 0,
+	0, 0, 1
+};
+
+
+const char* vertex_shader =
+"#version 460\n"
+"layout(location = 0) in vec3 vertex_position;"
+"layout(location = 1) in vec3 vertex_color;"
+"out vec3 color;"
 "void main()"
 "{"
-"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);"
+"	color = vertex_color;"
+"   gl_Position = vec4(vertex_position, 1.0);"
 "}";
 
+
 const char* fragment_shader = 
-"#version 460 core\n"
-"out vec4 FragColor;"
+"#version 460\n"
+"in vec3 color;"
 "void main()"
 "{"
-"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
+"   gl_FragColor = vec4(color.x, color.y, color.z, 1.0f);"
 "}";
 
 
@@ -71,27 +84,14 @@ int main() {
 	glfwSetFramebufferSizeCallback(pWindow, frameBufferSizeCallback);
 
 	//shaders
-	GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertex_shader, nullptr);
-	glCompileShader(vertexShader);
+	Renderer::ShaderProgram shaderProgram(vertex_shader, fragment_shader);
+	
+	if (!shaderProgram.isCompiled()) {
+		
+		std::cerr << "Can't create Shader program" << std::endl;
+		return -1;
+	}
 
-	GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragment_shader, nullptr);
-	glCompileShader(fragmentShader);
-
-
-	//shader program
-	GLuint shaderProgram = glCreateProgram();
-
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-
-	glUseProgram(shaderProgram);
-
-	//clear 
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
 
 	//attrib
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), nullptr);
@@ -103,16 +103,27 @@ int main() {
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices, GL_STATIC_DRAW);
 
+	GLuint VBOcolors = 0;
+	glGenBuffers(1, &VBOcolors);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOcolors);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(colors), &colors, GL_STATIC_DRAW);
+
 
 	//VAO
 	GLuint VAO = 0;
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	glEnableVertexAttribArray(0);
+
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
 	
+	glBindBuffer(GL_ARRAY_BUFFER, VBOcolors);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, nullptr);
+	
+
+	glEnableVertexAttribArray(0);
+	glEnableVertexAttribArray(1);
 
 
 	while (!glfwWindowShouldClose(pWindow)) {
@@ -122,8 +133,8 @@ int main() {
 
 		glClearColor(0, 0.7, 1, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
-		
-		glUseProgram(shaderProgram);
+
+		shaderProgram.use();
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
@@ -132,7 +143,6 @@ int main() {
 
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
-	glDeleteProgram(shaderProgram);
 	glfwTerminate();
 
 	return 0;
