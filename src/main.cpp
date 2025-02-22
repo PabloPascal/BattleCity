@@ -3,7 +3,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include "Renderer/Renderer.h"
+#include "Renderer/ShaderProgram.h"
+#include "Resources/ResourceManager.h"
 
 GLfloat vertices[] = {
 	-0.5, -0.5, 0.f,
@@ -19,27 +20,6 @@ GLfloat colors[] = {
 };
 
 
-const char* vertex_shader =
-"#version 460\n"
-"layout(location = 0) in vec3 vertex_position;"
-"layout(location = 1) in vec3 vertex_color;"
-"out vec3 color;"
-"void main()"
-"{"
-"	color = vertex_color;"
-"   gl_Position = vec4(vertex_position, 1.0);"
-"}";
-
-
-const char* fragment_shader = 
-"#version 460\n"
-"in vec3 color;"
-"void main()"
-"{"
-"   gl_FragColor = vec4(color.x, color.y, color.z, 1.0f);"
-"}";
-
-
 
 void frameBufferSizeCallback(GLFWwindow* window, int width,  int height) {
 	glViewport(0, 0, width, height);
@@ -52,7 +32,8 @@ void processInput(GLFWwindow* window) {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
+
 
 	if (!glfwInit()) {
 		std::cerr << "failed to init glfw" << std::endl;
@@ -83,19 +64,14 @@ int main() {
 
 	glfwSetFramebufferSizeCallback(pWindow, frameBufferSizeCallback);
 
-	//shaders
-	Renderer::ShaderProgram shaderProgram(vertex_shader, fragment_shader);
-	
-	if (!shaderProgram.isCompiled()) {
-		
-		std::cerr << "Can't create Shader program" << std::endl;
+	ResourceManager* resourceManager = new ResourceManager(argv[0]);
+	auto pDefaultShaders = resourceManager->loadShaders("DefaultShaders", "res/shaders/vertex.txt", "res/shaders/fragment.txt");
+
+	if (!pDefaultShaders->isCompiled()) {
+		std::cerr << "Can't load shaderProgram" << std::endl;
 		return -1;
 	}
 
-
-	//attrib
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GL_FLOAT), nullptr);
-	glEnableVertexAttribArray(0);
 
 	//VBO
 	GLuint VBO = 0;
@@ -134,15 +110,15 @@ int main() {
 		glClearColor(0, 0.7, 1, 1);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		shaderProgram.use();
+		pDefaultShaders->use();
 		glBindVertexArray(VAO);
 		glDrawArrays(GL_TRIANGLES, 0, 3);
 
 		glfwSwapBuffers(pWindow);
 	}
 
-	glDeleteVertexArrays(1, &VAO);
-	glDeleteBuffers(1, &VBO);
+	delete resourceManager;
+
 	glfwTerminate();
 
 	return 0;
